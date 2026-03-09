@@ -89,8 +89,8 @@ const PROGRAM = {
         trackWeight: true,
         weightLabel: "KB Weight (kg)",
         exercises: [
-          { min: 1, name: "Renegade Rows (per side)", reps: 5 },
-          { min: 2, name: "Tactical Swings (Hand-to-hand)", reps: 12 },
+          { min: 1, name: "Gorilla Rows (per side)", reps: 5 },
+          { min: 2, name: "Kettlebell Cleans (Hand-to-hand)", reps: 12 },
           { min: 3, name: "Plank or Hollow Hold", reps: "45s" },
         ],
       },
