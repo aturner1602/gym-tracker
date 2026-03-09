@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 // ============================================================
 // CONFIGURATION — Edit SHEETS_URL after deploying Apps Script
 // ============================================================
-const SHEETS_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycby7tC8BLLyMYL_gJH1GnLR-R7j7mmYakcZNux-w-klCwiTW3_Mr1x2weBqDT1mG3mij/exec";
 
 const PROGRAM = {
   Monday: {
