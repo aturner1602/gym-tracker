@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --version)",
+      "Bash(git --version)",
+      "Bash(gh --version)",
+      "Bash(gh auth status)",
+      "Bash(npm install)",
+      "Bash(npm run build)",
+      "Bash(gh repo create gym-tracker --public --source=. --remote=origin --push)"
+    ]
+  }
+}
