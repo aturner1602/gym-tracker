@@ -116,7 +116,11 @@ const PROGRAM = {
         type: "circuit",
         trackWeight: false,
         exercises: [
-          { name: "Turkish Get-Ups per side", reps: 2, note: "~45s per rep, move slow" },
+          { weightId: "suitcase_carry", name: "Suitcase Carry", reps: "20m per side", trackWeight: true, weightLabel: "KB Weight (kg)", hideReps: true },
+          { name: "Single Leg RDL (Bodyweight)", reps: "10 per leg" },
+          { name: "Plank with Shoulder Taps", reps: "20 taps" },
+          { weightId: "goblet_lunge", name: "Goblet Reverse Lunge", reps: "12 total", trackWeight: true, weightLabel: "KB Weight (kg)", hideReps: true },
+          { name: "Dead Bug", reps: "10 per side" },
           { name: "90/90 Hip Switches", reps: 10, note: "Controlled rotation" },
           { name: "Dead Hangs", reps: "60s", note: "Decompresses spine" },
         ],
@@ -350,7 +354,7 @@ function WeightInput({ label, value, onChange, placeholder }) {
   );
 }
 
-function WeightTracker({ id, user, day, weightLabel, color }) {
+function WeightTracker({ id, user, day, weightLabel, color, hideReps }) {
   const [lastSession, setLastSession] = useState(null);
   const [todayWeight, setTodayWeight] = useState("");
   const [todayReps, setTodayReps] = useState("");
@@ -400,9 +404,9 @@ function WeightTracker({ id, user, day, weightLabel, color }) {
       ) : (
         <div style={{ fontSize: 12, color: "#444", marginBottom: 10, fontStyle: "italic" }}>No previous session — first time!</div>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: hideReps ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 10 }}>
         <WeightInput label={weightLabel || "Weight (kg)"} value={todayWeight} onChange={setTodayWeight} placeholder="e.g. 24" />
-        <WeightInput label="Reps / Notes" value={todayReps} onChange={setTodayReps} placeholder="e.g. 5" />
+        {!hideReps && <WeightInput label="Reps / Notes" value={todayReps} onChange={setTodayReps} placeholder="e.g. 5" />}
       </div>
       <button
         onClick={handleSave}
@@ -441,10 +445,17 @@ function ExerciseCard({ block, user, day }) {
       {block.exercises && (
         <div style={{ marginBottom: 4 }}>
           {block.exercises.map((ex, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, alignItems: "baseline", padding: "4px 0", borderBottom: "1px solid #1a1a1a" }}>
-              {ex.min && <span style={{ fontSize: 11, color, fontWeight: 700, minWidth: 40 }}>Min {ex.min}</span>}
-              <span style={{ fontSize: 13, color: "#ccc" }}>{ex.name}</span>
-              <span style={{ fontSize: 12, color: "#555", marginLeft: "auto" }}>×{ex.reps}</span>
+            <div key={i}>
+              <div style={{ display: "flex", gap: 8, alignItems: "baseline", padding: "4px 0", borderBottom: ex.trackWeight ? "none" : "1px solid #1a1a1a" }}>
+                {ex.min && <span style={{ fontSize: 11, color, fontWeight: 700, minWidth: 40 }}>Min {ex.min}</span>}
+                <span style={{ fontSize: 13, color: "#ccc" }}>{ex.name}</span>
+                <span style={{ fontSize: 12, color: "#555", marginLeft: "auto" }}>×{ex.reps}</span>
+              </div>
+              {ex.trackWeight && (
+                <div style={{ borderBottom: "1px solid #1a1a1a", paddingBottom: 8, marginBottom: 4 }}>
+                  <WeightTracker id={block.id + "_" + ex.weightId} user={user} day={day} weightLabel={ex.weightLabel} color={color} hideReps={ex.hideReps} />
+                </div>
+              )}
             </div>
           ))}
         </div>
