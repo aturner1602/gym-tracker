@@ -48,12 +48,12 @@ function doGet(e) {
     const rows = sheet.getDataRange().getValues();
     const headers = rows[0];
     const data = rows.slice(1).map(row => ({
-      savedAt:    row[0],
-      user:       row[1],
-      day:        row[2],
-      exerciseId: row[3],
-      weight:     row[4],
-      reps:       row[5],
+      savedAt:    row[0] instanceof Date ? row[0].toISOString() : String(row[0]),
+      user:       String(row[1]),
+      day:        String(row[2]),
+      exerciseId: String(row[3]),
+      weight:     String(row[4]),
+      reps:       String(row[5]),
     }));
 
     return ContentService

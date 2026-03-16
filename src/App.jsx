@@ -286,55 +286,15 @@ const TYPE_COLORS = {
   circuit: "#a78bfa", hiit: "#f87171", cardio: "#94a3b8", choice: "#34d399",
 };
 
-// ── Local Storage helpers (falls back gracefully if unavailable) ──
+// ── localStorage helpers (used only for ChoiceCard selection state) ──
 function lsGet(key) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; }
 }
 function lsSet(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 }
-
 function getStorageKey(user, day, exerciseId) {
   return `gym:${user}:${day}:${exerciseId}`;
-}
-
-function loadLog(user, day, exerciseId) {
-  return Promise.resolve(lsGet(getStorageKey(user, day, exerciseId)));
-}
-
-async function saveLog(user, day, exerciseId, data) {
-  const payload = { ...data, savedAt: new Date().toISOString() };
-  lsSet(getStorageKey(user, day, exerciseId), payload);
-
-  // Also sync to Google Sheets if URL is configured
-  if (SHEETS_URL && SHEETS_URL !== "PASTE_YOUR_APPS_SCRIPT_URL_HERE") {
-    try {
-      await fetch(SHEETS_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user, day, exerciseId,
-          weight: data.weight,
-          reps: data.reps,
-          savedAt: payload.savedAt,
-        }),
-      });
-    } catch (e) {
-      console.warn("Sheets sync failed (app still works):", e);
-    }
-  }
-}
-
-async function loadLastSession(user, exerciseId, currentDay) {
-  const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const currentIdx = dayOrder.indexOf(currentDay);
-  for (let i = 1; i <= 6; i++) {
-    const idx = (currentIdx - i + 6) % 6;
-    const log = await loadLog(user, dayOrder[idx], exerciseId);
-    if (log && log.weight) return { day: dayOrder[idx], ...log };
-  }
-  return null;
 }
 
 function WeightInput({ label, value, onChange, placeholder }) {
@@ -354,48 +314,52 @@ function WeightInput({ label, value, onChange, placeholder }) {
   );
 }
 
-function WeightTracker({ id, user, day, weightLabel, color, hideReps }) {
-  const [lastSession, setLastSession] = useState(null);
-  const [todayWeight, setTodayWeight] = useState("");
-  const [todayReps, setTodayReps] = useState("");
-  const [saved, setSaved] = useState(false);
-  const [synced, setSynced] = useState(false);
-  const [loading, setLoading] = useState(true);
+function WeightTracker({ id, user, day, weightLabel, color, hideReps, sheetData, onSave }) {
+  const today = new Date().toDateString();
+
+  const todayEntry = sheetData.find(r =>
+    r.user === user && r.day === day && r.exerciseId === id &&
+    new Date(r.savedAt).toDateString() === today
+  );
+
+  const lastEntry = sheetData
+    .filter(r => r.user === user && r.exerciseId === id && new Date(r.savedAt).toDateString() !== today)
+    .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt))[0];
+
+  const [todayWeight, setTodayWeight] = useState(String(todayEntry?.weight || ""));
+  const [todayReps, setTodayReps] = useState(String(todayEntry?.reps || ""));
+  const [saved, setSaved] = useState(!!todayEntry);
 
   useEffect(() => {
-    setLoading(true); setSaved(false); setSynced(false);
-    setTodayWeight(""); setTodayReps("");
-    Promise.all([loadLog(user, day, id), loadLastSession(user, id, day)])
-      .then(([todayLog, last]) => {
-        if (todayLog) { setTodayWeight(todayLog.weight || ""); setTodayReps(todayLog.reps || ""); setSaved(true); setSynced(true); }
-        setLastSession(last);
-        setLoading(false);
-      });
-  }, [user, day, id]);
+    const entry = sheetData.find(r =>
+      r.user === user && r.day === day && r.exerciseId === id &&
+      new Date(r.savedAt).toDateString() === new Date().toDateString()
+    );
+    setTodayWeight(String(entry?.weight || ""));
+    setTodayReps(String(entry?.reps || ""));
+    setSaved(!!entry);
+  }, [user, day, id, sheetData]);
 
-  if (loading) return null;
-
-  const handleSave = async () => {
+  const handleSave = () => {
     setSaved(true);
-    await saveLog(user, day, id, { weight: todayWeight, reps: todayReps });
-    setSynced(true);
+    onSave(id, { weight: todayWeight, reps: todayReps });
   };
 
   return (
     <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #1d1d1d" }}>
-      {lastSession ? (
+      {lastEntry ? (
         <div style={{ marginBottom: 12, background: "#0d0d0d", borderRadius: 8, padding: "10px 12px" }}>
           <div style={{ fontSize: 11, color: "#555", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Last session ({lastSession.day})
+            Last session ({lastEntry.day})
           </div>
           <div style={{ display: "flex", gap: 20 }}>
             <div>
-              <span style={{ fontSize: 20, fontWeight: 800, color: "#f59e0b" }}>{lastSession.weight}</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: "#f59e0b" }}>{lastEntry.weight}</span>
               <span style={{ fontSize: 11, color: "#555", marginLeft: 3 }}>kg</span>
             </div>
-            {lastSession.reps && (
+            {lastEntry.reps && (
               <div>
-                <span style={{ fontSize: 20, fontWeight: 800, color: "#60a5fa" }}>{lastSession.reps}</span>
+                <span style={{ fontSize: 20, fontWeight: 800, color: "#60a5fa" }}>{lastEntry.reps}</span>
                 <span style={{ fontSize: 11, color: "#555", marginLeft: 3 }}>reps</span>
               </div>
             )}
@@ -417,13 +381,13 @@ function WeightTracker({ id, user, day, weightLabel, color, hideReps }) {
           letterSpacing: "0.05em", transition: "all 0.2s",
         }}
       >
-        {saved ? (synced ? "✓ Saved & Synced to Sheets" : "✓ Saved (Syncing...)") : "Save Today's Numbers"}
+        {saved ? "✓ Saved & Synced to Sheets" : "Save Today's Numbers"}
       </button>
     </div>
   );
 }
 
-function ExerciseCard({ block, user, day }) {
+function ExerciseCard({ block, user, day, sheetData, onSave }) {
   const color = TYPE_COLORS[block.type] || "#888";
   return (
     <div style={{
@@ -453,7 +417,7 @@ function ExerciseCard({ block, user, day }) {
               </div>
               {ex.trackWeight && (
                 <div style={{ borderBottom: "1px solid #1a1a1a", paddingBottom: 8, marginBottom: 4 }}>
-                  <WeightTracker id={block.id + "_" + ex.weightId} user={user} day={day} weightLabel={ex.weightLabel} color={color} hideReps={ex.hideReps} />
+                  <WeightTracker id={block.id + "_" + ex.weightId} user={user} day={day} weightLabel={ex.weightLabel} color={color} hideReps={ex.hideReps} sheetData={sheetData} onSave={onSave} />
                 </div>
               )}
             </div>
@@ -461,24 +425,23 @@ function ExerciseCard({ block, user, day }) {
         </div>
       )}
       {block.trackWeight && (
-        <WeightTracker id={block.id} user={user} day={day} weightLabel={block.weightLabel} color={color} />
+        <WeightTracker id={block.id} user={user} day={day} weightLabel={block.weightLabel} color={color} sheetData={sheetData} onSave={onSave} />
       )}
     </div>
   );
 }
 
-function ChoiceCard({ block, user, day }) {
+function ChoiceCard({ block, user, day, sheetData, onSave }) {
   const color = TYPE_COLORS.choice;
   const [selected, setSelected] = useState(null);
 
   useEffect(() => {
     setSelected(null);
-    loadLog(user, day, block.id + "_choice").then(log => {
-      if (log && log.choice) setSelected(log.choice);
-    });
+    const log = lsGet(getStorageKey(user, day, block.id + "_choice"));
+    if (log?.choice) setSelected(log.choice);
   }, [user, day, block.id]);
 
-  const handleChoose = async (choiceId) => {
+  const handleChoose = (choiceId) => {
     setSelected(choiceId);
     lsSet(getStorageKey(user, day, block.id + "_choice"), { choice: choiceId });
   };
@@ -531,7 +494,7 @@ function ChoiceCard({ block, user, day }) {
               ))}
             </div>
           )}
-          <WeightTracker id={selectedChoice.id} user={user} day={day} weightLabel={selectedChoice.weightLabel} color={color} />
+          <WeightTracker id={selectedChoice.id} user={user} day={day} weightLabel={selectedChoice.weightLabel} color={color} sheetData={sheetData} onSave={onSave} />
         </div>
       )}
     </div>
@@ -543,8 +506,39 @@ export default function GymTracker() {
   const [selectedDay, setSelectedDay] = useState(today === "Sunday" ? "Monday" : today);
   const [user, setUser] = useState("adam");
   const [showWarmup, setShowWarmup] = useState(false);
+  const [sheetData, setSheetData] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
   const workout = PROGRAM[selectedDay];
   const workDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  useEffect(() => {
+    setDataLoading(true);
+    fetch(SHEETS_URL)
+      .then(r => r.json())
+      .then(json => { if (json.success) setSheetData(json.data || []); })
+      .catch(e => console.warn("Failed to load sheet data:", e))
+      .finally(() => setDataLoading(false));
+  }, [user]);
+
+  function handleSave(exerciseId, data) {
+    const savedAt = new Date().toISOString();
+    const todayStr = new Date().toDateString();
+    // Optimistic update: replace any existing today entry for this exercise
+    setSheetData(prev => [
+      ...prev.filter(r => !(
+        r.user === user && r.day === selectedDay && r.exerciseId === exerciseId &&
+        new Date(r.savedAt).toDateString() === todayStr
+      )),
+      { savedAt, user, day: selectedDay, exerciseId, weight: data.weight, reps: data.reps },
+    ]);
+    // POST to Sheets in background
+    fetch(SHEETS_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user, day: selectedDay, exerciseId, weight: data.weight, reps: data.reps, savedAt }),
+    }).catch(e => console.warn("Sheets sync failed:", e));
+  }
 
   return (
     <div style={{
@@ -596,14 +590,19 @@ export default function GymTracker() {
       </div>
 
       <div style={{ padding: "16px 16px 0" }}>
-        {!workout && (
+        {dataLoading && (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#444" }}>
+            <div style={{ fontSize: 14 }}>Loading your data...</div>
+          </div>
+        )}
+        {!dataLoading && !workout && (
           <div style={{ textAlign: "center", padding: "60px 20px", color: "#333" }}>
             <div style={{ fontSize: 60, marginBottom: 16 }}>💤</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#555" }}>Rest Day</div>
             <div style={{ fontSize: 14, marginTop: 8 }}>Recovery is part of the program.</div>
           </div>
         )}
-        {workout && (
+        {!dataLoading && workout && (
           <>
             {workout.warmup && (
               <div style={{
@@ -636,8 +635,8 @@ export default function GymTracker() {
             )}
             {workout.blocks.map(block =>
               block.type === "choice"
-                ? <ChoiceCard key={block.id + user} block={block} user={user} day={selectedDay} />
-                : <ExerciseCard key={block.id + user} block={block} user={user} day={selectedDay} />
+                ? <ChoiceCard key={block.id + user} block={block} user={user} day={selectedDay} sheetData={sheetData} onSave={handleSave} />
+                : <ExerciseCard key={block.id + user} block={block} user={user} day={selectedDay} sheetData={sheetData} onSave={handleSave} />
             )}
           </>
         )}
