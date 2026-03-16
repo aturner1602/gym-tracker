@@ -70,7 +70,16 @@ const PROGRAM = {
         type: "barbell",
         sets: 5,
         reps: 5,
-        note: "During each 3-min rest: 8–10 Pull-ups.",
+        note: "Rest 3 mins between sets.",
+        trackWeight: true,
+      },
+      {
+        id: "pullups_tue",
+        name: "Pull-ups",
+        type: "superset",
+        sets: 5,
+        reps: "8-10",
+        note: "Done during bench rest periods.",
         trackWeight: true,
       },
       {
@@ -190,7 +199,16 @@ const PROGRAM = {
         type: "barbell",
         sets: 5,
         reps: 5,
-        note: "During each 3-min rest: 8–10 Pull-ups.",
+        note: "Rest 3 mins between sets.",
+        trackWeight: true,
+      },
+      {
+        id: "pullups_fri",
+        name: "Pull-ups",
+        type: "superset",
+        sets: 5,
+        reps: "8-10",
+        note: "Done during OHP rest periods.",
         trackWeight: true,
       },
       {
@@ -284,7 +302,7 @@ function WeightInput({ label, value, onChange, placeholder }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</label>
       <input
-        type="number" inputMode="decimal" step="any" value={value}
+        type="text" inputMode="decimal" value={value}
         onChange={e => onChange(e.target.value)} placeholder={placeholder || "—"}
         style={{
           background: "#1a1a1a", border: "1px solid #333", borderRadius: 8,
@@ -341,13 +359,13 @@ function WeightTracker({ id, user, day, weightLabel, color, hideReps, sheetData,
           <div style={{ display: "flex", gap: 20 }}>
             {lastEntry.weight && (
               <div>
-                <span style={{ fontSize: 20, fontWeight: 800, color: "#f59e0b" }}>{lastEntry.weight}</span>
+                <span style={{ fontSize: 20, fontWeight: 800, color: "#f59e0b" }}>{parseFloat(lastEntry.weight) || lastEntry.weight}</span>
                 <span style={{ fontSize: 11, color: "#555", marginLeft: 3 }}>kg</span>
               </div>
             )}
             {lastEntry.reps && (
               <div>
-                <span style={{ fontSize: 20, fontWeight: 800, color: "#60a5fa" }}>{lastEntry.reps}</span>
+                <span style={{ fontSize: 20, fontWeight: 800, color: "#60a5fa" }}>{parseFloat(lastEntry.reps) || lastEntry.reps}</span>
                 <span style={{ fontSize: 11, color: "#555", marginLeft: 3 }}>reps</span>
               </div>
             )}
