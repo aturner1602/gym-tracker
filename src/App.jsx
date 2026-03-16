@@ -70,16 +70,7 @@ const PROGRAM = {
         type: "barbell",
         sets: 5,
         reps: 5,
-        note: "During each 3-min rest: 8–10 Weighted Pull-ups or Lat Pulldowns.",
-        trackWeight: true,
-      },
-      {
-        id: "pullup_superset",
-        name: "Pull-ups / Lat Pulldown (superset)",
-        type: "superset",
-        sets: 5,
-        reps: "8-10",
-        note: "Done during bench rest periods.",
+        note: "During each 3-min rest: 8–10 Pull-ups.",
         trackWeight: true,
       },
       {
@@ -90,7 +81,7 @@ const PROGRAM = {
         weightLabel: "KB Weight (kg)",
         exercises: [
           { min: 1, name: "Gorilla Rows (per side)", reps: 5 },
-          { min: 2, name: "Kettlebell Cleans (Hand-to-hand)", reps: 12 },
+          { min: 2, name: "Kettlebell Cleans", reps: 12 },
           { min: 3, name: "Plank or Hollow Hold", reps: "45s" },
         ],
       },
@@ -199,16 +190,7 @@ const PROGRAM = {
         type: "barbell",
         sets: 5,
         reps: 5,
-        note: "During each 3-min rest: 12–15 Face Pulls or Pull-ups.",
-        trackWeight: true,
-      },
-      {
-        id: "facepull_superset",
-        name: "Face Pulls / Pull-ups (superset)",
-        type: "superset",
-        sets: 5,
-        reps: "12-15",
-        note: "Done during OHP rest periods.",
+        note: "During each 3-min rest: 8–10 Pull-ups.",
         trackWeight: true,
       },
       {
@@ -302,7 +284,7 @@ function WeightInput({ label, value, onChange, placeholder }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <label style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</label>
       <input
-        type="number" inputMode="decimal" value={value}
+        type="number" inputMode="decimal" step="any" value={value}
         onChange={e => onChange(e.target.value)} placeholder={placeholder || "—"}
         style={{
           background: "#1a1a1a", border: "1px solid #333", borderRadius: 8,
@@ -323,12 +305,16 @@ function WeightTracker({ id, user, day, weightLabel, color, hideReps, sheetData,
   );
 
   const lastEntry = sheetData
-    .filter(r => r.user === user && r.exerciseId === id && new Date(r.savedAt).toDateString() !== today)
+    .filter(r =>
+      r.user === user && r.exerciseId === id &&
+      new Date(r.savedAt).toDateString() !== today &&
+      (r.weight || r.reps)
+    )
     .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt))[0];
 
   const [todayWeight, setTodayWeight] = useState(String(todayEntry?.weight || ""));
   const [todayReps, setTodayReps] = useState(String(todayEntry?.reps || ""));
-  const [saved, setSaved] = useState(!!todayEntry);
+  const [saved, setSaved] = useState(!!(todayEntry && (todayEntry.weight || todayEntry.reps)));
 
   useEffect(() => {
     const entry = sheetData.find(r =>
@@ -337,7 +323,7 @@ function WeightTracker({ id, user, day, weightLabel, color, hideReps, sheetData,
     );
     setTodayWeight(String(entry?.weight || ""));
     setTodayReps(String(entry?.reps || ""));
-    setSaved(!!entry);
+    setSaved(!!(entry && (entry.weight || entry.reps)));
   }, [user, day, id, sheetData]);
 
   const handleSave = () => {
@@ -353,10 +339,12 @@ function WeightTracker({ id, user, day, weightLabel, color, hideReps, sheetData,
             Last session ({lastEntry.day})
           </div>
           <div style={{ display: "flex", gap: 20 }}>
-            <div>
-              <span style={{ fontSize: 20, fontWeight: 800, color: "#f59e0b" }}>{lastEntry.weight}</span>
-              <span style={{ fontSize: 11, color: "#555", marginLeft: 3 }}>kg</span>
-            </div>
+            {lastEntry.weight && (
+              <div>
+                <span style={{ fontSize: 20, fontWeight: 800, color: "#f59e0b" }}>{lastEntry.weight}</span>
+                <span style={{ fontSize: 11, color: "#555", marginLeft: 3 }}>kg</span>
+              </div>
+            )}
             {lastEntry.reps && (
               <div>
                 <span style={{ fontSize: 20, fontWeight: 800, color: "#60a5fa" }}>{lastEntry.reps}</span>
@@ -369,8 +357,8 @@ function WeightTracker({ id, user, day, weightLabel, color, hideReps, sheetData,
         <div style={{ fontSize: 12, color: "#444", marginBottom: 10, fontStyle: "italic" }}>No previous session — first time!</div>
       )}
       <div style={{ display: "grid", gridTemplateColumns: hideReps ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 10 }}>
-        <WeightInput label={weightLabel || "Weight (kg)"} value={todayWeight} onChange={setTodayWeight} placeholder="e.g. 24" />
-        {!hideReps && <WeightInput label="Reps / Notes" value={todayReps} onChange={setTodayReps} placeholder="e.g. 5" />}
+        <WeightInput label={weightLabel || "Weight (kg)"} value={todayWeight} onChange={v => { setTodayWeight(v); setSaved(false); }} placeholder="e.g. 24" />
+        {!hideReps && <WeightInput label="Reps / Notes" value={todayReps} onChange={v => { setTodayReps(v); setSaved(false); }} placeholder="e.g. 5" />}
       </div>
       <button
         onClick={handleSave}
